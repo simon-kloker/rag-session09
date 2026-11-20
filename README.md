@@ -22,7 +22,7 @@ A demonstration of a simple **Retrieval-Augmented Generation (RAG)** architectur
    COHERE_API_KEY=your-key-here
    ```
 3. Place your PDF files in the `./docs/` folder.
-4. Open and run `01_embed_documents.ipynb` to build the FAISS index.
+4. Open and run `01_embed_documents.ipynb` to build the FAISS index. Rebuild any index created with the former LangChain community FAISS wrapper; the new format uses `index.faiss` and `documents.json`.
 5. Open and run `02_retrieve_rerank_generate.ipynb` to query your documents.
 
 ### Option B – Local setup
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 PDF files
    │
    ▼
-[PyPDFLoader]  →  pages
+[pypdf.PdfReader]  →  pages
    │
    ▼
 [RecursiveCharacterTextSplitter]  →  chunks

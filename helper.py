@@ -1,7 +1,12 @@
-from typing import Any
-from langchain_core.documents import Document
-
+import json
 import os
+from pathlib import Path
+from typing import Any
+
+import faiss
+import numpy as np
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 
 from config import FAISS_INDEX
 
@@ -41,8 +46,29 @@ def get_cohere_api_key() -> str:
 
 def check_faiss_store_existence() -> None:
     """Check if the FAISS index file exists."""
-    if not FAISS_INDEX.exists():
+    if not all((FAISS_INDEX / name).is_file() for name in ("index.faiss", "documents.json")):
         raise FileNotFoundError(
-            f"FAISS index not found at '{FAISS_INDEX}'. "
-            "Please run '01_embed_documents.ipynb' first."
+            f"FAISS index or documents not found at '{FAISS_INDEX}'. "
+            "Run '01_embed_documents.ipynb' to build or rebuild the index."
         )
+
+
+def load_faiss_index(index_path: Path) -> tuple[faiss.Index, list[Document]]:
+    index = faiss.read_index(str(index_path / "index.faiss"))
+    with (index_path / "documents.json").open(encoding="utf-8") as file:
+        documents = [Document(**item) for item in json.load(file)]
+    if index.ntotal != len(documents):
+        raise ValueError("FAISS index and document count do not match. Rebuild the index.")
+    return index, documents
+
+
+def search_faiss_index(
+    index: faiss.Index, documents: list[Document], embeddings: Embeddings, query: str, k: int
+) -> list[Document]:
+    if k <= 0:
+        raise ValueError("k must be positive")
+    vector = np.asarray([embeddings.embed_query(query)], dtype=np.float32)
+    if vector.shape[1] != index.d:
+        raise ValueError("Query embedding dimension does not match the FAISS index.")
+    _, indices = index.search(vector, k)
+    return [documents[int(i)] for i in indices[0] if i >= 0]

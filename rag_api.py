@@ -4,7 +4,6 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from langchain_cohere import ChatCohere, CohereEmbeddings, CohereRerank
-from langchain_community.vectorstores import FAISS
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -20,11 +19,7 @@ helper.check_faiss_store_existence()
 
 
 embeddings = CohereEmbeddings(model=EMBED_MODEL, cohere_api_key=cohere_api_key)
-vector_store = FAISS.load_local(
-    str(FAISS_INDEX),
-    embeddings,
-    allow_dangerous_deserialization=True,
-)
+index, documents = helper.load_faiss_index(FAISS_INDEX)
 reranker = CohereRerank(
     model=RERANK_MODEL,
     cohere_api_key=cohere_api_key,
@@ -59,7 +54,7 @@ app = FastAPI(title="Minimal RAG API")
 @app.get("/ask")
 def ask(q: str = Query(..., min_length=1)) -> dict[str, Any]:
     try:
-        retrieved_docs = vector_store.similarity_search(q, k=RETRIEVAL_K)
+        retrieved_docs = helper.search_faiss_index(index, documents, embeddings, q, k=RETRIEVAL_K)
         reranked_docs = reranker.compress_documents(retrieved_docs, q)
         context = helper.format_docs(reranked_docs)
 
